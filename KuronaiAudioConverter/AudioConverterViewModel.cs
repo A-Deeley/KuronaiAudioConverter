@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Data;
 using System.Windows.Forms;
 
 namespace KuronaiAudioConverter;
@@ -60,6 +61,7 @@ public sealed class AudioConverterViewModel : ObservableRecipient
     public RelayCommand StopLoadingFiles { get; }
     public AsyncRelayCommand SelectInputFolder { get; }
     public AsyncRelayCommand SelectOutputFolder { get; }
+    public AsyncRelayCommand StartConvertingFiles { get; set; }
 
     private int inputDirectoryFileCount;
     public int InputDirectoryFileCount
@@ -76,6 +78,7 @@ public sealed class AudioConverterViewModel : ObservableRecipient
         StopLoadingFiles = new RelayCommand(StopLoadingFilesExecute, CanStopLoadingFiles);
         SelectInputFolder = new AsyncRelayCommand(SelectInputDirectory, CanSelectInputDirectory);
         SelectOutputFolder = new AsyncRelayCommand(SelectOutputDirectory, CanSelectOutputDirectory);
+        StartConvertingFiles = new AsyncRelayCommand(ConvertFiles, CanConvertFiles);
     }
 
     private void InitializeDefaults()
@@ -86,10 +89,34 @@ public sealed class AudioConverterViewModel : ObservableRecipient
         {
             { CancellationTokenOperation.CountInputDirFiles, new() },
             { CancellationTokenOperation.LoadAudioFiles, new() },
+            { CancellationTokenOperation.ConvertAudioFiles, new() },
         };
         FolderContents = new();
+        FolderContents.CollectionChanged += FolderContents_CollectionChanged;
         InputDirectoryRecursive = false;
     }
+
+    #region StartConvertingFiles
+    private Task ConvertFiles()
+    {
+        cancellationSources[CancellationTokenOperation.ConvertAudioFiles]?.Cancel();
+        cancellationSources[CancellationTokenOperation.ConvertAudioFiles] = new();
+
+        return Task.Run(async () =>
+        {
+            App.Current.Dispatcher.Invoke(() => IsRunning = true);
+            List<FFmpegConversionInstance> conversionInstances = new(FolderContents.Count);
+            foreach (var item in folderContents)
+            {
+                await FfmpegConverterFactory.ConvertFile(item, cancellationSources[CancellationTokenOperation.ConvertAudioFiles].Token);
+                if (cancellationSources[CancellationTokenOperation.ConvertAudioFiles].Token.IsCancellationRequested) break;
+            }
+            App.Current.Dispatcher.Invoke(() => IsRunning = false);
+        }, cancellationSources[CancellationTokenOperation.ConvertAudioFiles].Token);
+    }
+
+    private bool CanConvertFiles() => folderContents.All(item => item.Status == ConversionStatus.Analysed);
+    #endregion
 
     #region SelectInputFolder
     private async Task SelectInputDirectory()
@@ -144,11 +171,11 @@ public sealed class AudioConverterViewModel : ObservableRecipient
 
     private bool CanSelectOutputDirectory() => !IsRunning;
     #endregion
-
     #region StopLoadingFiles
     private void StopLoadingFilesExecute()
     {
         cancellationSources[CancellationTokenOperation.LoadAudioFiles].Cancel();
+        cancellationSources[CancellationTokenOperation.ConvertAudioFiles].Cancel();
         IsRunning = false;
     }
 
@@ -157,11 +184,17 @@ public sealed class AudioConverterViewModel : ObservableRecipient
 
     private Task LoadFolderContentsAsync(bool? recursive)
     {
+        FolderContents = new();
+        FolderContents.CollectionChanged += FolderContents_CollectionChanged;
         cancellationSources[CancellationTokenOperation.LoadAudioFiles].Cancel();
         cancellationSources[CancellationTokenOperation.LoadAudioFiles] = new CancellationTokenSource();
         return Task.Run(async () =>
         {
-            App.Current.Dispatcher.Invoke(() => IsRunning = true);
+            App.Current.Dispatcher.Invoke(() =>
+            {
+                IsRunning = true;
+                StopLoadingFiles.NotifyCanExecuteChanged();
+            });
             SearchOption searchOption = (recursive is null or false)
                 ? SearchOption.TopDirectoryOnly
                 : SearchOption.AllDirectories;
@@ -183,8 +216,17 @@ public sealed class AudioConverterViewModel : ObservableRecipient
             }
 
             await Task.WhenAll(ffprobeAnalysis);
-            App.Current.Dispatcher.Invoke(() => IsRunning = false);
+            App.Current.Dispatcher.Invoke(() =>
+            {
+                IsRunning = false;
+                StopLoadingFiles.NotifyCanExecuteChanged();
+            });
         }, cancellationSources[CancellationTokenOperation.LoadAudioFiles].Token);
+    }
+
+    private void FolderContents_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        CollectionViewSource.GetDefaultView(sender).MoveCurrentTo(e.NewItems[0]);
     }
 
     private Task GetFileCountAsync(bool? recursive = null)

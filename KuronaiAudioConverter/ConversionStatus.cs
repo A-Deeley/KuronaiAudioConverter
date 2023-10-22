@@ -9,8 +9,10 @@ namespace KuronaiAudioConverter;
 public enum ConversionStatus
 {
     Unknown,
-    InProgress,
-    Completed,
+    Analysing,
+    Analysed,
+    Converting,
+    Converted,
     Failed,
     NotStarted
 }

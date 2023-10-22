@@ -57,14 +57,15 @@
                 </ComboBox>
             </StackPanel>
             <ProgressBar Grid.Row="1" Margin="5px" Minimum="0" Maximum="{Binding InputDirectoryFileCount}" Value="{Binding LoadFileProgress, Mode=OneWay}"/>
-            <ListView Grid.Row="2" Margin="5px" ItemsSource="{Binding FolderContents}" HorizontalContentAlignment="Stretch">
+            <ListView Grid.Row="2" Margin="5px" ItemsSource="{Binding FolderContents}" IsSynchronizedWithCurrentItem="True" SelectionChanged="ListView_SelectionChanged" HorizontalContentAlignment="Stretch">
                 <ListView.ItemTemplate>
                     <DataTemplate>
                         <Grid>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="400px"/>
                                 <ColumnDefinition Width="auto"/>
-                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="400px"/>
+                                <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="100px"/>
                             </Grid.ColumnDefinitions>
                             <Label Grid.Column="0" Content="{Binding CurrentName}"/>
@@ -72,10 +73,21 @@
                             <Label Grid.Column="2" Content="{Binding OutputName}"/>
                             <ProgressBar Grid.Column="3" Minimum="0" Maximum="100" Value="{Binding Progress}"/>
                             <Grid Grid.Column="4"></Grid>
+                            <Label Grid.Column="5" Content="{Binding StatusMessage}" Foreground="{Binding StatusColour}"/>
                         </Grid>
                     </DataTemplate>
                 </ListView.ItemTemplate>
             </ListView>
+            <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="5px">
+                <Button Background="#FCF6F5" FontSize="15pt" Command="{Binding StartConvertingFiles}">
+                    <Button.Resources>
+                        <Style TargetType="Border">
+                            <Setter Property="CornerRadius" Value="2"/>
+                        </Style>
+                    </Button.Resources>
+                    Start Converting
+                </Button>
+            </StackPanel>
         </Grid>
     </DockPanel>
 </Window>

@@ -9,5 +9,6 @@ namespace KuronaiAudioConverter;
 public enum CancellationTokenOperation
 {
     CountInputDirFiles,
-    LoadAudioFiles
+    LoadAudioFiles,
+    ConvertAudioFiles
 }

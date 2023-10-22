@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
@@ -29,5 +30,15 @@ namespace KuronaiAudioConverter
         }
 
         public AudioConverterViewModel ViewModel => (AudioConverterViewModel)DataContext;
+
+        private void ListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            Selector? selector = sender as Selector;
+
+            if (selector is ListView lv)
+            {
+                lv.ScrollIntoView(selector.SelectedItem);
+            }
+        }
     }
 }
